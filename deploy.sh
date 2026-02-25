@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # --- Configuration ---
-PORT_ARG=${1:-3009}
+PORT_ARG=${1:-3010}
 PROJECT_NAME="EasyRadio"
 IMAGE_NAME="easyradio"
 CONTAINER_NAME="easyradio"
