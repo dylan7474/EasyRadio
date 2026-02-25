@@ -346,6 +346,48 @@
         var MAX_ATTEMPTS_PER_SOURCE = 2;
         var logs = [];
 
+        function detectStreamFormat(url) {
+            var lower = (url || '').toLowerCase();
+
+            if (lower.indexOf('.aac') >= 0 || lower.indexOf('-aac') >= 0 || lower.indexOf('/aac') >= 0 || lower.indexOf('aac-') >= 0) {
+                return 'aac';
+            }
+
+            if (lower.indexOf('.m3u8') >= 0) {
+                return 'hls';
+            }
+
+            if (lower.indexOf('.ogg') >= 0 || lower.indexOf('ogg') >= 0) {
+                return 'ogg';
+            }
+
+            if (lower.indexOf('.mp3') >= 0 || lower.indexOf('-mp3') >= 0 || lower.indexOf('/mp3') >= 0 || lower.indexOf('mp3-') >= 0) {
+                return 'mp3';
+            }
+
+            return 'unknown';
+        }
+
+        function getMimeForFormat(format) {
+            if (format === 'mp3') return 'audio/mpeg';
+            if (format === 'aac') return 'audio/aac';
+            if (format === 'ogg') return 'audio/ogg';
+            if (format === 'hls') return 'application/vnd.apple.mpegurl';
+            return '';
+        }
+
+        function logCurrentSourceDiagnostics(label, sourceUrl) {
+            var format = detectStreamFormat(sourceUrl);
+            var mime = getMimeForFormat(format);
+            var canPlay = mime ? player.canPlayType(mime) : 'unknown';
+            var networkStateMap = ['NETWORK_EMPTY', 'NETWORK_IDLE', 'NETWORK_LOADING', 'NETWORK_NO_SOURCE'];
+            var readyStateMap = ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT_DATA', 'HAVE_FUTURE_DATA', 'HAVE_ENOUGH_DATA'];
+            var networkState = networkStateMap[player.networkState] || ('UNKNOWN(' + player.networkState + ')');
+            var readyState = readyStateMap[player.readyState] || ('UNKNOWN(' + player.readyState + ')');
+
+            pushLog(label + ' source=' + sourceUrl + ' format=' + format + ' mime=' + (mime || 'n/a') + ' canPlayType=' + canPlay + ' network=' + networkState + ' ready=' + readyState);
+        }
+
         // --- SWIPE LOGIC ---
         var startX = 0, startY = 0;
         var endX = 0, endY = 0;
@@ -428,6 +470,7 @@
                 updateUI(playingCat, playingStation, true);
             }
             pushLog('Audio playing: ' + player.currentSrc);
+            logCurrentSourceDiagnostics('Playing diagnostics', player.currentSrc);
             clearRetryTimer();
         });
 
@@ -447,6 +490,7 @@
 
         player.addEventListener('error', function(e) {
             pushLog('Audio error code=' + (player.error ? player.error.code : 'unknown'));
+            logCurrentSourceDiagnostics('Error diagnostics', player.currentSrc || currentSourceList[currentSourceIndex]);
             if (isFallback) return;
             tryNextSource();
         });
@@ -490,8 +534,10 @@
                 currentSourceIndex = 0;
                 sourceAttemptCount = 0;
                 pushLog('Selected ' + categories[cIndex].stations[sIndex].name + ' with ' + currentSourceList.length + ' source(s)');
+                pushLog('Source order: ' + currentSourceList.join(' | '));
 
                 player.src = currentSourceList[currentSourceIndex];
+                logCurrentSourceDiagnostics('Trying initial', currentSourceList[currentSourceIndex]);
                 player.load();
                 playingCat = cIndex;
                 playingStation = sIndex;
@@ -519,6 +565,7 @@
                 pushLog('Retrying source ' + (currentSourceIndex + 1) + '/' + currentSourceList.length + ' (attempt ' + (sourceAttemptCount + 1) + ')');
                 player.pause();
                 player.src = currentSourceList[currentSourceIndex];
+                logCurrentSourceDiagnostics('Retry attempt', currentSourceList[currentSourceIndex]);
                 player.load();
                 safePlay(playingCat, playingStation);
                 return;
@@ -532,6 +579,7 @@
                 pushLog('Trying source ' + (currentSourceIndex + 1) + '/' + currentSourceList.length + ': ' + nextSource);
                 player.pause();
                 player.src = nextSource;
+                logCurrentSourceDiagnostics('Trying alternate', nextSource);
                 player.load();
                 safePlay(playingCat, playingStation);
                 return;
