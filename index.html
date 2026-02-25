@@ -349,16 +349,11 @@
         // --- SWIPE LOGIC ---
         var startX = 0, startY = 0;
         var endX = 0, endY = 0;
-        var isSwiping = false;
+        var suppressTapUntil = 0;
 
         document.addEventListener('touchstart', function(e) {
             startX = e.changedTouches[0].screenX;
             startY = e.changedTouches[0].screenY;
-            isSwiping = false;
-        }, false);
-
-        document.addEventListener('touchmove', function(e) {
-            isSwiping = true; // Prevents accidental taps while scrolling
         }, false);
 
         document.addEventListener('touchend', function(e) {
@@ -371,6 +366,7 @@
 
             // Only act if the touch moved further than the threshold
             if (Math.abs(dx) > swipeThreshold || Math.abs(dy) > swipeThreshold) {
+                suppressTapUntil = new Date().getTime() + 400;
                 // Determine if swipe was mostly horizontal or vertical
                 if (Math.abs(dx) > Math.abs(dy)) {
                     // Horizontal Swipe (Category)
@@ -479,7 +475,7 @@
         }
 
         function handleStationTap(cIndex, sIndex) {
-            if (isSwiping) return;
+            if (new Date().getTime() < suppressTapUntil) return;
 
             // If tapping the exact station that is currently playing
             if (playingCat === cIndex && playingStation === sIndex && !player.paused) {
@@ -496,6 +492,7 @@
                 pushLog('Selected ' + categories[cIndex].stations[sIndex].name + ' with ' + currentSourceList.length + ' source(s)');
 
                 player.src = currentSourceList[currentSourceIndex];
+                player.load();
                 playingCat = cIndex;
                 playingStation = sIndex;
 
@@ -522,6 +519,7 @@
                 pushLog('Retrying source ' + (currentSourceIndex + 1) + '/' + currentSourceList.length + ' (attempt ' + (sourceAttemptCount + 1) + ')');
                 player.pause();
                 player.src = currentSourceList[currentSourceIndex];
+                player.load();
                 safePlay(playingCat, playingStation);
                 return;
             }
@@ -534,6 +532,7 @@
                 pushLog('Trying source ' + (currentSourceIndex + 1) + '/' + currentSourceList.length + ': ' + nextSource);
                 player.pause();
                 player.src = nextSource;
+                player.load();
                 safePlay(playingCat, playingStation);
                 return;
             }
