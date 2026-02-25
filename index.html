@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Simple Radio">
+    <title>Accessible Radio</title>
+    
+    <style>
+        /* High contrast, large text reset */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            color: #FFFFFF;
+            font-family: -apple-system, Helvetica, Arial, sans-serif;
+            overflow: hidden; 
+            touch-action: none; 
+        }
+
+        /* Horizontal sliding container */
+        #app-container {
+            width: 400vw; /* 4 categories */
+            height: 100vh;
+            display: flex;
+            display: -webkit-flex;
+            -webkit-transition: -webkit-transform 0.4s ease-out;
+            transition: transform 0.4s ease-out;
+        }
+
+        /* Vertical sliding columns (Categories) */
+        .category-column {
+            width: 100vw;
+            display: flex;
+            display: -webkit-flex;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+            -webkit-transition: -webkit-transform 0.4s ease-out;
+            transition: transform 0.4s ease-out;
+        }
+
+        /* Individual Station Scenes */
+        .panel {
+            width: 100vw;
+            height: 100vh;
+            flex: 0 0 100vh; /* Force panel to be exactly screen height */
+            -webkit-flex: 0 0 100vh;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+            -webkit-justify-content: center;
+            justify-content: center;
+            -webkit-align-items: center;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 5vw;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        /* Typography */
+        .category-title {
+            font-size: 5vmin;
+            text-transform: uppercase;
+            letter-spacing: 0.5vmin;
+            margin-bottom: 2vmin;
+            font-weight: bold;
+        }
+
+        h1 {
+            font-size: 10vmin;
+            margin: 0 0 20px 0;
+            color: #FFFFFF;
+        }
+
+        .status {
+            font-size: 5.5vmin;
+            color: #AAAAAA;
+            margin-bottom: 30px;
+            min-height: 8vmin;
+        }
+
+        .swipe-hint {
+            font-size: 4vmin;
+            color: #666666;
+            margin-top: 6vmin;
+        }
+
+        /* The massive play button */
+        .icon-btn {
+            width: 40vmin;
+            height: 40vmin;
+            background-color: #222222;
+            border-radius: 50%;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-justify-content: center;
+            justify-content: center;
+            -webkit-align-items: center;
+            align-items: center;
+            font-size: 18vmin;
+            border: 1.5vmin solid #555555; 
+            -webkit-transition: all 0.2s ease;
+            transition: all 0.2s ease;
+        }
+
+        /* Category Color Theming */
+        .cat-0 .icon-btn { border-color: #FFD700; } /* Music: Yellow */
+        .cat-0 .category-title { color: #FFD700; }
+        
+        .cat-1 .icon-btn { border-color: #00FFFF; } /* News: Cyan */
+        .cat-1 .category-title { color: #00FFFF; }
+        
+        .cat-2 .icon-btn { border-color: #FF00FF; } /* Science: Magenta */
+        .cat-2 .category-title { color: #FF00FF; }
+        
+        .cat-3 .icon-btn { border-color: #FFA500; } /* Tech: Orange */
+        .cat-3 .category-title { color: #FFA500; }
+
+        /* Playing Animation State */
+        .playing .icon-btn {
+            background-color: #004400 !important;
+            border-color: #00FF00 !important; 
+            box-shadow: 0 0 4vmin #00FF00;
+        }
+
+        /* Pagination Layout */
+        #h-pagination {
+            position: absolute;
+            bottom: 3vh;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+        }
+        
+        #v-pagination {
+            position: absolute;
+            right: 3vw;
+            top: 0;
+            height: 100%;
+            display: flex;
+            display: -webkit-flex;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+            -webkit-justify-content: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .dot {
+            background-color: #444;
+            border-radius: 50%;
+        }
+        
+        .h-dot {
+            display: inline-block;
+            width: 3.5vmin;
+            height: 3.5vmin;
+            margin: 0 1.5vmin;
+        }
+
+        .v-dot {
+            width: 2.5vmin;
+            height: 2.5vmin;
+            margin: 1.5vmin 0;
+        }
+        
+        .dot.active {
+            background-color: #FFFFFF;
+            box-shadow: 0 0 1vmin #FFFFFF;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Dynamic Container -->
+    <div id="app-container"></div>
+
+    <!-- Pagination Indicators -->
+    <div id="h-pagination"></div>
+    <div id="v-pagination"></div>
+
+    <!-- Single Persistent Audio Engine -->
+    <audio id="radio-player" preload="none"></audio>
+
+    <script>
+        // STRICT ES5 COMPATIBILITY FOR iOS 9
+
+        // --- DATA STRUCTURE (4 Categories x 5 Stations) ---
+        var categories = [
+            {
+                name: "Music",
+                icon: "🎵",
+                stations: [
+                    { name: "Groove Salad", url: "https://ice1.somafm.com/groovesalad-128-mp3" },
+                    { name: "Radio Paradise", url: "https://stream.radioparadise.com/mp3-128" },
+                    { name: "Code Radio", url: "https://coderadio-admin.freecodecamp.org/radio/8000/radio.mp3" },
+                    { name: "Secret Agent", url: "https://ice1.somafm.com/secretagent-128-mp3" },
+                    { name: "PopTron", url: "https://ice1.somafm.com/poptron-128-mp3" }
+                ]
+            },
+            {
+                name: "News",
+                icon: "📰",
+                stations: [
+                    { name: "NPR 24/7", url: "https://npr-ice.streamguys1.com/npr-cmp3" },
+                    { name: "WNYC New York", url: "https://fm939.wnyc.org/wnycfm" },
+                    { name: "MPR News", url: "https://mprstreams.mpr.org/newsim-128" },
+                    { name: "KQED San Fran", url: "https://streams.kqed.org/kqedradio" },
+                    { name: "WAMU Washington", url: "https://wamu-1.streamguys.com/wamu-1" }
+                ]
+            },
+            {
+                name: "Science",
+                icon: "🚀",
+                stations: [
+                    { name: "Mission Control", url: "https://ice1.somafm.com/missioncontrol-128-mp3" },
+                    { name: "NASA Third Rock", url: "https://rfcmedia.streamguys1.com/thirdrock.mp3" },
+                    { name: "Deep Space One", url: "https://ice1.somafm.com/deepspaceone-128-mp3" },
+                    { name: "Space Station", url: "https://ice1.somafm.com/spacestation-128-mp3" },
+                    { name: "Sci-Fi Radio", url: "https://broadcaster.scifi.radio/listen.mp3" }
+                ]
+            },
+            {
+                name: "Tech & Culture",
+                icon: "💻",
+                stations: [
+                    { name: "DEF CON Radio", url: "https://ice1.somafm.com/defcon-128-mp3" },
+                    { name: "KCRW Radio", url: "https://kcrw.streamguys1.com/kcrw_192k_mp3_on_air" },
+                    { name: "SomaFM Fluid", url: "https://ice1.somafm.com/fluid-128-mp3" },
+                    { name: "Drone Zone", url: "https://ice1.somafm.com/dronezone-128-mp3" },
+                    { name: "Synphaera", url: "https://ice1.somafm.com/synphaera-128-mp3" }
+                ]
+            }
+        ];
+
+        // --- INITIALIZE DOM ---
+        var container = document.getElementById('app-container');
+        var player = document.getElementById('radio-player');
+        
+        // Build the Panels
+        var html = '';
+        for (var c = 0; c < categories.length; c++) {
+            html += '<div class="category-column" id="col-' + c + '">';
+            for (var s = 0; s < categories[c].stations.length; s++) {
+                var st = categories[c].stations[s];
+                html += '<div class="panel cat-' + c + '" id="panel-' + c + '-' + s + '" onclick="handleStationTap(' + c + ', ' + s + ', \'' + st.url + '\')">';
+                html += '<div class="category-title">' + categories[c].name + '</div>';
+                html += '<h1>' + st.name + '</h1>';
+                html += '<div class="status" id="status-' + c + '-' + s + '">Tap to Play</div>';
+                html += '<div class="icon-btn">' + categories[c].icon + '</div>';
+                html += '<div class="swipe-hint">↕ Swipe for more channels</div>';
+                html += '</div>';
+            }
+            html += '</div>';
+        }
+        container.innerHTML = html;
+
+        // Build Horizontal Pagination (Categories)
+        var hDots = '';
+        for (var i = 0; i < categories.length; i++) {
+            hDots += '<span class="dot h-dot" id="h-dot-' + i + '"></span>';
+        }
+        document.getElementById('h-pagination').innerHTML = hDots;
+
+        // Build Vertical Pagination (Stations)
+        var vDots = '';
+        for (var i = 0; i < 5; i++) {
+            vDots += '<span class="dot v-dot" id="v-dot-' + i + '"></span>';
+        }
+        document.getElementById('v-pagination').innerHTML = vDots;
+
+
+        // --- STATE MANAGEMENT ---
+        var currentCat = 0; 
+        var currentStationInCat = [0, 0, 0, 0]; // Tracks vertical position of each column
+        
+        var playingCat = -1;
+        var playingStation = -1;
+        var isFallback = false;
+
+        // --- SWIPE LOGIC ---
+        var startX = 0, startY = 0;
+        var endX = 0, endY = 0;
+        var isSwiping = false;
+
+        document.addEventListener('touchstart', function(e) {
+            startX = e.changedTouches[0].screenX;
+            startY = e.changedTouches[0].screenY;
+            isSwiping = false;
+        }, false);
+
+        document.addEventListener('touchmove', function(e) {
+            isSwiping = true; // Prevents accidental taps while scrolling
+        }, false);
+
+        document.addEventListener('touchend', function(e) {
+            endX = e.changedTouches[0].screenX;
+            endY = e.changedTouches[0].screenY;
+            
+            var dx = endX - startX;
+            var dy = endY - startY;
+            var swipeThreshold = 50; 
+
+            // Only act if the touch moved further than the threshold
+            if (Math.abs(dx) > swipeThreshold || Math.abs(dy) > swipeThreshold) {
+                // Determine if swipe was mostly horizontal or vertical
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Horizontal Swipe (Category)
+                    if (dx > swipeThreshold && currentCat > 0) {
+                        currentCat--;
+                    } else if (dx < -swipeThreshold && currentCat < categories.length - 1) {
+                        currentCat++;
+                    }
+                } else {
+                    // Vertical Swipe (Station)
+                    // Note: Swiping UP (negative dy) moves DOWN the list.
+                    var maxStations = categories[currentCat].stations.length - 1;
+                    if (dy > swipeThreshold && currentStationInCat[currentCat] > 0) {
+                        currentStationInCat[currentCat]--;
+                    } else if (dy < -swipeThreshold && currentStationInCat[currentCat] < maxStations) {
+                        currentStationInCat[currentCat]++;
+                    }
+                }
+                updateView();
+            }
+        }, false);
+
+        function updateView() {
+            // Move horizontally
+            var tx = -(currentCat * 100);
+            container.style.transform = 'translateX(' + tx + 'vw)';
+            container.style.webkitTransform = 'translateX(' + tx + 'vw)';
+
+            // Move the current column vertically
+            var col = document.getElementById('col-' + currentCat);
+            var ty = -(currentStationInCat[currentCat] * 100);
+            col.style.transform = 'translateY(' + ty + 'vh)';
+            col.style.webkitTransform = 'translateY(' + ty + 'vh)';
+
+            // Update Horizontal Dots
+            for (var i = 0; i < categories.length; i++) {
+                var hDot = document.getElementById('h-dot-' + i);
+                hDot.className = (i === currentCat) ? 'dot h-dot active' : 'dot h-dot';
+            }
+
+            // Update Vertical Dots
+            for (var i = 0; i < 5; i++) {
+                var vDot = document.getElementById('v-dot-' + i);
+                vDot.className = (i === currentStationInCat[currentCat]) ? 'dot v-dot active' : 'dot v-dot';
+            }
+        }
+
+        // --- AUDIO ENGINE EVENT HANDLERS ---
+        player.addEventListener('waiting', function() {
+            if (playingCat >= 0 && playingStation >= 0) {
+                document.getElementById('status-' + playingCat + '-' + playingStation).innerText = "Buffering...";
+            }
+        });
+
+        player.addEventListener('playing', function() {
+            if (!isFallback) {
+                updateUI(playingCat, playingStation, true);
+            }
+        });
+
+        player.addEventListener('error', function(e) {
+            console.error("Audio error", e);
+            if (isFallback) return;
+
+            if (playingCat >= 0 && playingStation >= 0) {
+                document.getElementById('status-' + playingCat + '-' + playingStation).innerText = "Stream Blocked/Error";
+                updateUI(playingCat, playingStation, false);
+            }
+        });
+
+        // --- AUDIO LOGIC ---
+        function safePlay(cIndex, sIndex, originalUrl) {
+            var playPromise = player.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.catch(function(error) {
+                    if (error.name === "AbortError") return; 
+                    
+                    console.warn("Stream blocked by preview iframe restrictions. Playing safe fallback...");
+                    isFallback = true;
+                    player.src = 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Banjos.mp3';
+                    
+                    var fallbackPromise = player.play();
+                    if (fallbackPromise !== undefined) {
+                        fallbackPromise.then(function() {
+                            document.getElementById('status-' + cIndex + '-' + sIndex).innerText = "Test Audio (Preview Blocked)";
+                            document.getElementById('panel-' + cIndex + '-' + sIndex).className += " playing";
+                        }).catch(function(err) {
+                            document.getElementById('status-' + cIndex + '-' + sIndex).innerText = "Audio Error";
+                            updateUI(cIndex, sIndex, false);
+                        });
+                    }
+                });
+            }
+        }
+
+        function handleStationTap(cIndex, sIndex, streamUrl) {
+            if (isSwiping) return;
+
+            // If tapping the exact station that is currently playing
+            if (playingCat === cIndex && playingStation === sIndex && !player.paused) {
+                player.pause();
+                updateUI(cIndex, sIndex, false);
+            } else {
+                player.pause();
+                isFallback = false;
+                
+                player.src = streamUrl; 
+                playingCat = cIndex;
+                playingStation = sIndex;
+                
+                updateUI(cIndex, sIndex, true); 
+                safePlay(cIndex, sIndex, streamUrl);
+            }
+        }
+
+        function updateUI(activeC, activeS, isPlaying) {
+            // Reset ALL statuses back to default
+            for (var c = 0; c < categories.length; c++) {
+                for (var s = 0; s < categories[c].stations.length; s++) {
+                    var p = document.getElementById('panel-' + c + '-' + s);
+                    var stat = document.getElementById('status-' + c + '-' + s);
+                    p.className = 'panel cat-' + c; // Strip 'playing' class safely
+                    stat.innerText = 'Tap to Play';
+                }
+            }
+
+            // Apply active UI state to the selected panel
+            if (activeC >= 0 && activeS >= 0) {
+                var activePanel = document.getElementById('panel-' + activeC + '-' + activeS);
+                var activeStatus = document.getElementById('status-' + activeC + '-' + activeS);
+
+                if (isPlaying) {
+                    activePanel.className += ' playing';
+                    activeStatus.innerText = 'Playing...';
+                } else {
+                    activeStatus.innerText = 'Paused';
+                }
+            }
+        }
+
+        // Initialize view at boot
+        updateView();
+
+    </script>
+</body>
+</html>
