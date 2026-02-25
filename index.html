@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="referrer" content="no-referrer"> 
+    <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Simple Radio">
     <title>Accessible Radio</title>
-    
+
     <style>
         /* High contrast, large text reset */
         body, html {
@@ -19,8 +19,8 @@
             background-color: #000000;
             color: #FFFFFF;
             font-family: -apple-system, Helvetica, Arial, sans-serif;
-            overflow: hidden; 
-            touch-action: none; 
+            overflow: hidden;
+            touch-action: none;
         }
 
         /* Horizontal sliding container */
@@ -105,7 +105,7 @@
             -webkit-align-items: center;
             align-items: center;
             font-size: 18vmin;
-            border: 1.5vmin solid #555555; 
+            border: 1.5vmin solid #555555;
             -webkit-transition: all 0.2s ease;
             transition: all 0.2s ease;
         }
@@ -113,20 +113,20 @@
         /* Category Color Theming */
         .cat-0 .icon-btn { border-color: #FFD700; } /* Music: Yellow */
         .cat-0 .category-title { color: #FFD700; }
-        
+
         .cat-1 .icon-btn { border-color: #00FFFF; } /* News: Cyan */
         .cat-1 .category-title { color: #00FFFF; }
-        
+
         .cat-2 .icon-btn { border-color: #FF00FF; } /* Science: Magenta */
         .cat-2 .category-title { color: #FF00FF; }
-        
+
         .cat-3 .icon-btn { border-color: #FFA500; } /* Tech: Orange */
         .cat-3 .category-title { color: #FFA500; }
 
         /* Playing Animation State */
         .playing .icon-btn {
             background-color: #004400 !important;
-            border-color: #00FF00 !important; 
+            border-color: #00FF00 !important;
             box-shadow: 0 0 4vmin #00FF00;
         }
 
@@ -138,7 +138,7 @@
             text-align: center;
             pointer-events: none;
         }
-        
+
         #v-pagination {
             position: absolute;
             right: 3vw;
@@ -157,7 +157,7 @@
             background-color: #444;
             border-radius: 50%;
         }
-        
+
         .h-dot {
             display: inline-block;
             width: 3.5vmin;
@@ -170,10 +170,52 @@
             height: 2.5vmin;
             margin: 1.5vmin 0;
         }
-        
+
         .dot.active {
             background-color: #FFFFFF;
             box-shadow: 0 0 1vmin #FFFFFF;
+        }
+
+        #log-toggle {
+            position: absolute;
+            top: 2vh;
+            left: 2vw;
+            z-index: 10;
+            font-size: 4vmin;
+            background: #111;
+            color: #fff;
+            border: 0.6vmin solid #888;
+            border-radius: 1vmin;
+            padding: 1vmin 2vmin;
+        }
+
+        #log-panel {
+            position: absolute;
+            top: 10vh;
+            left: 5vw;
+            width: 90vw;
+            height: 45vh;
+            z-index: 11;
+            border: 0.6vmin solid #888;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 2vmin;
+            box-sizing: border-box;
+            display: none;
+        }
+
+        #log-panel.visible {
+            display: block;
+        }
+
+        #log-output {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            color: #0f0;
+            border: 0;
+            font-size: 2.9vmin;
+            font-family: monospace;
+            resize: none;
         }
     </style>
 </head>
@@ -185,6 +227,10 @@
     <!-- Pagination Indicators -->
     <div id="h-pagination"></div>
     <div id="v-pagination"></div>
+    <button id="log-toggle" type="button" onclick="toggleLogPanel()">Logs</button>
+    <div id="log-panel">
+        <textarea id="log-output" readonly></textarea>
+    </div>
 
     <!-- Single Persistent Audio Engine -->
     <audio id="radio-player" preload="none"></audio>
@@ -198,11 +244,11 @@
                 name: "Music",
                 icon: "🎵",
                 stations: [
-                    { name: "Groove Salad", url: "https://ice1.somafm.com/groovesalad-128-mp3" },
+                    { name: "Groove Salad", sources: ["https://ice1.somafm.com/groovesalad-128-mp3", "https://ice1.somafm.com/groovesalad-64-aac"] },
                     { name: "Radio Paradise", url: "https://stream.radioparadise.com/mp3-128" },
                     { name: "Code Radio", url: "https://coderadio-admin.freecodecamp.org/radio/8000/radio.mp3" },
-                    { name: "Secret Agent", url: "https://ice1.somafm.com/secretagent-128-mp3" },
-                    { name: "PopTron", url: "https://ice1.somafm.com/poptron-128-mp3" }
+                    { name: "Secret Agent", sources: ["https://ice1.somafm.com/secretagent-128-mp3", "https://ice1.somafm.com/secretagent-64-aac"] },
+                    { name: "PopTron", sources: ["https://ice1.somafm.com/poptron-128-mp3", "https://ice1.somafm.com/poptron-64-aac"] }
                 ]
             },
             {
@@ -220,10 +266,10 @@
                 name: "Science",
                 icon: "🚀",
                 stations: [
-                    { name: "Mission Control", url: "https://ice1.somafm.com/missioncontrol-128-mp3" },
+                    { name: "Mission Control", sources: ["https://ice1.somafm.com/missioncontrol-128-mp3", "https://ice1.somafm.com/missioncontrol-64-aac"] },
                     { name: "NASA Third Rock", url: "https://rfcmedia.streamguys1.com/thirdrock.mp3" },
-                    { name: "Deep Space One", url: "https://ice1.somafm.com/deepspaceone-128-mp3" },
-                    { name: "Space Station", url: "https://ice1.somafm.com/spacestation-128-mp3" },
+                    { name: "Deep Space One", sources: ["https://ice1.somafm.com/deepspaceone-128-mp3", "https://ice1.somafm.com/deepspaceone-64-aac"] },
+                    { name: "Space Station", sources: ["https://ice1.somafm.com/spacestation-128-mp3", "https://ice1.somafm.com/spacestation-64-aac"] },
                     { name: "Sci-Fi Radio", url: "https://broadcaster.scifi.radio/listen.mp3" }
                 ]
             },
@@ -231,11 +277,11 @@
                 name: "Tech & Culture",
                 icon: "💻",
                 stations: [
-                    { name: "DEF CON Radio", url: "https://ice1.somafm.com/defcon-128-mp3" },
+                    { name: "DEF CON Radio", sources: ["https://ice1.somafm.com/defcon-128-mp3", "https://ice1.somafm.com/defcon-64-aac"] },
                     { name: "KCRW Radio", url: "https://kcrw.streamguys1.com/kcrw_192k_mp3_on_air" },
-                    { name: "SomaFM Fluid", url: "https://ice1.somafm.com/fluid-128-mp3" },
-                    { name: "Drone Zone", url: "https://ice1.somafm.com/dronezone-128-mp3" },
-                    { name: "Synphaera", url: "https://ice1.somafm.com/synphaera-128-mp3" }
+                    { name: "SomaFM Fluid", sources: ["https://ice1.somafm.com/fluid-128-mp3", "https://ice1.somafm.com/fluid-64-aac"] },
+                    { name: "Drone Zone", sources: ["https://ice1.somafm.com/dronezone-128-mp3", "https://ice1.somafm.com/dronezone-64-aac"] },
+                    { name: "Synphaera", sources: ["https://ice1.somafm.com/synphaera-128-mp3", "https://ice1.somafm.com/synphaera-64-aac"] }
                 ]
             }
         ];
@@ -243,14 +289,14 @@
         // --- INITIALIZE DOM ---
         var container = document.getElementById('app-container');
         var player = document.getElementById('radio-player');
-        
+
         // Build the Panels
         var html = '';
         for (var c = 0; c < categories.length; c++) {
             html += '<div class="category-column" id="col-' + c + '">';
             for (var s = 0; s < categories[c].stations.length; s++) {
                 var st = categories[c].stations[s];
-                html += '<div class="panel cat-' + c + '" id="panel-' + c + '-' + s + '" onclick="handleStationTap(' + c + ', ' + s + ', \'' + st.url + '\')">';
+                html += '<div class="panel cat-' + c + '" id="panel-' + c + '-' + s + '" onclick="handleStationTap(' + c + ', ' + s + ')">';
                 html += '<div class="category-title">' + categories[c].name + '</div>';
                 html += '<h1>' + st.name + '</h1>';
                 html += '<div class="status" id="status-' + c + '-' + s + '">Tap to Play</div>';
@@ -278,12 +324,16 @@
 
 
         // --- STATE MANAGEMENT ---
-        var currentCat = 0; 
+        var currentCat = 0;
         var currentStationInCat = [0, 0, 0, 0]; // Tracks vertical position of each column
-        
+
         var playingCat = -1;
         var playingStation = -1;
         var isFallback = false;
+        var currentSourceList = [];
+        var currentSourceIndex = 0;
+        var retryTimer = 0;
+        var logs = [];
 
         // --- SWIPE LOGIC ---
         var startX = 0, startY = 0;
@@ -303,10 +353,10 @@
         document.addEventListener('touchend', function(e) {
             endX = e.changedTouches[0].screenX;
             endY = e.changedTouches[0].screenY;
-            
+
             var dx = endX - startX;
             var dy = endY - startY;
-            var swipeThreshold = 50; 
+            var swipeThreshold = 50;
 
             // Only act if the touch moved further than the threshold
             if (Math.abs(dx) > swipeThreshold || Math.abs(dy) > swipeThreshold) {
@@ -362,51 +412,68 @@
             if (playingCat >= 0 && playingStation >= 0) {
                 document.getElementById('status-' + playingCat + '-' + playingStation).innerText = "Buffering...";
             }
+            pushLog('Audio waiting event');
         });
 
         player.addEventListener('playing', function() {
             if (!isFallback) {
                 updateUI(playingCat, playingStation, true);
             }
+            pushLog('Audio playing: ' + player.currentSrc);
+            clearRetryTimer();
+        });
+
+        player.addEventListener('stalled', function() {
+            pushLog('Audio stalled: ' + player.currentSrc);
+            tryNextSource();
+        });
+
+        player.addEventListener('canplay', function() {
+            pushLog('Audio canplay: ' + player.currentSrc);
         });
 
         player.addEventListener('error', function(e) {
-            console.error("Audio error", e);
+            pushLog('Audio error code=' + (player.error ? player.error.code : 'unknown'));
             if (isFallback) return;
-
-            if (playingCat >= 0 && playingStation >= 0) {
-                document.getElementById('status-' + playingCat + '-' + playingStation).innerText = "Stream Blocked/Error";
-                updateUI(playingCat, playingStation, false);
-            }
+            tryNextSource();
         });
 
         // --- AUDIO LOGIC ---
-        function safePlay(cIndex, sIndex, originalUrl) {
+        function safePlay(cIndex, sIndex) {
             var playPromise = player.play();
-            
+
             if (playPromise !== undefined) {
                 playPromise.catch(function(error) {
-                    if (error.name === "AbortError") return; 
-                    
-                    console.warn("Stream blocked by preview iframe restrictions. Playing safe fallback...");
+                    if (error.name === "AbortError") return;
+
+                    pushLog('Play() rejected: ' + error.name);
+                    pushLog('Switching to test fallback audio');
                     isFallback = true;
                     player.src = 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Banjos.mp3';
-                    
+
                     var fallbackPromise = player.play();
                     if (fallbackPromise !== undefined) {
                         fallbackPromise.then(function() {
                             document.getElementById('status-' + cIndex + '-' + sIndex).innerText = "Test Audio (Preview Blocked)";
                             document.getElementById('panel-' + cIndex + '-' + sIndex).className += " playing";
+                            pushLog('Fallback test audio playing');
                         }).catch(function(err) {
                             document.getElementById('status-' + cIndex + '-' + sIndex).innerText = "Audio Error";
                             updateUI(cIndex, sIndex, false);
+                            pushLog('Fallback audio failed: ' + err.name);
                         });
                     }
                 });
             }
+
+            clearRetryTimer();
+            retryTimer = setTimeout(function() {
+                pushLog('No play event after timeout, trying next source');
+                tryNextSource();
+            }, 8000);
         }
 
-        function handleStationTap(cIndex, sIndex, streamUrl) {
+        function handleStationTap(cIndex, sIndex) {
             if (isSwiping) return;
 
             // If tapping the exact station that is currently playing
@@ -416,13 +483,77 @@
             } else {
                 player.pause();
                 isFallback = false;
-                
-                player.src = streamUrl; 
+                clearRetryTimer();
+
+                currentSourceList = getStationSources(cIndex, sIndex);
+                currentSourceIndex = 0;
+                pushLog('Selected ' + categories[cIndex].stations[sIndex].name + ' with ' + currentSourceList.length + ' source(s)');
+
+                player.src = currentSourceList[currentSourceIndex];
                 playingCat = cIndex;
                 playingStation = sIndex;
-                
-                updateUI(cIndex, sIndex, true); 
-                safePlay(cIndex, sIndex, streamUrl);
+
+                updateUI(cIndex, sIndex, true);
+                safePlay(cIndex, sIndex);
+            }
+        }
+
+        function getStationSources(cIndex, sIndex) {
+            var station = categories[cIndex].stations[sIndex];
+            if (station.sources && station.sources.length) {
+                return station.sources;
+            }
+            return [station.url];
+        }
+
+        function tryNextSource() {
+            if (playingCat < 0 || playingStation < 0) {
+                return;
+            }
+
+            if (currentSourceIndex < currentSourceList.length - 1) {
+                currentSourceIndex++;
+                var nextSource = currentSourceList[currentSourceIndex];
+                document.getElementById('status-' + playingCat + '-' + playingStation).innerText = 'Trying alternate stream...';
+                pushLog('Trying source ' + (currentSourceIndex + 1) + '/' + currentSourceList.length + ': ' + nextSource);
+                player.pause();
+                player.src = nextSource;
+                safePlay(playingCat, playingStation);
+                return;
+            }
+
+            clearRetryTimer();
+            updateUI(playingCat, playingStation, false);
+            document.getElementById('status-' + playingCat + '-' + playingStation).innerText = 'Stream Error on this device';
+            pushLog('All sources failed for current station');
+        }
+
+        function clearRetryTimer() {
+            if (retryTimer) {
+                clearTimeout(retryTimer);
+                retryTimer = 0;
+            }
+        }
+
+        function pushLog(message) {
+            var now = new Date();
+            var hh = ('0' + now.getHours()).slice(-2);
+            var mm = ('0' + now.getMinutes()).slice(-2);
+            var ss = ('0' + now.getSeconds()).slice(-2);
+            var line = hh + ':' + mm + ':' + ss + ' ' + message;
+            logs.push(line);
+            if (logs.length > 120) {
+                logs.shift();
+            }
+            document.getElementById('log-output').value = logs.join('\n');
+        }
+
+        function toggleLogPanel() {
+            var panel = document.getElementById('log-panel');
+            if (panel.className.indexOf('visible') >= 0) {
+                panel.className = '';
+            } else {
+                panel.className = 'visible';
             }
         }
 
