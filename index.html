@@ -233,7 +233,7 @@
     </div>
 
     <!-- Single Persistent Audio Engine -->
-    <audio id="radio-player" preload="none"></audio>
+    <audio id="radio-player" preload="none" playsinline webkit-playsinline></audio>
 
     <script>
         // STRICT ES5 COMPATIBILITY FOR iOS 9
@@ -464,22 +464,14 @@
                     if (error.name === "AbortError") return;
 
                     pushLog('Play() rejected: ' + error.name);
-                    pushLog('Switching to test fallback audio');
-                    isFallback = true;
-                    player.src = 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Banjos.mp3';
 
-                    var fallbackPromise = player.play();
-                    if (fallbackPromise !== undefined) {
-                        fallbackPromise.then(function() {
-                            document.getElementById('status-' + cIndex + '-' + sIndex).innerText = "Test Audio (Preview Blocked)";
-                            document.getElementById('panel-' + cIndex + '-' + sIndex).className += " playing";
-                            pushLog('Fallback test audio playing');
-                        }).catch(function(err) {
-                            document.getElementById('status-' + cIndex + '-' + sIndex).innerText = "Audio Error";
-                            updateUI(cIndex, sIndex, false);
-                            pushLog('Fallback audio failed: ' + err.name);
-                        });
+                    if (error.name === "NotAllowedError") {
+                        clearRetryTimer();
+                        document.getElementById('status-' + cIndex + '-' + sIndex).innerText = "Tap again to start audio";
+                        return;
                     }
+
+                    tryNextSource();
                 });
             }
 
