@@ -245,7 +245,14 @@
                 icon: "🎵",
                 stations: [
                     { name: "Groove Salad", sources: ["https://ice1.somafm.com/groovesalad-128-mp3", "https://ice1.somafm.com/groovesalad-64-aac"] },
-                    { name: "Radio Paradise", url: "https://stream.radioparadise.com/mp3-128" },
+                    {
+                        name: "Radio Paradise",
+                        sources: [
+                            "https://stream.radioparadise.com/mp3-192",
+                            "https://stream.radioparadise.com/mp3-128",
+                            "https://stream.radioparadise.com/aac-320"
+                        ]
+                    },
                     { name: "Code Radio", url: "https://coderadio-admin.freecodecamp.org/radio/8000/radio.mp3" },
                     { name: "Secret Agent", sources: ["https://ice1.somafm.com/secretagent-128-mp3", "https://ice1.somafm.com/secretagent-64-aac"] },
                     { name: "PopTron", sources: ["https://ice1.somafm.com/poptron-128-mp3", "https://ice1.somafm.com/poptron-64-aac"] }
@@ -333,6 +340,10 @@
         var currentSourceList = [];
         var currentSourceIndex = 0;
         var retryTimer = 0;
+        var sourceAttemptCount = 0;
+        var STARTUP_TIMEOUT_MS = 15000;
+        var BUFFER_TIMEOUT_MS = 12000;
+        var MAX_ATTEMPTS_PER_SOURCE = 2;
         var logs = [];
 
         // --- SWIPE LOGIC ---
@@ -413,6 +424,7 @@
                 document.getElementById('status-' + playingCat + '-' + playingStation).innerText = "Buffering...";
             }
             pushLog('Audio waiting event');
+            armRetryTimer('Buffering timeout, trying next source', BUFFER_TIMEOUT_MS);
         });
 
         player.addEventListener('playing', function() {
@@ -423,13 +435,18 @@
             clearRetryTimer();
         });
 
+        player.addEventListener('play', function() {
+            pushLog('Audio play event: ' + player.currentSrc);
+        });
+
         player.addEventListener('stalled', function() {
             pushLog('Audio stalled: ' + player.currentSrc);
-            tryNextSource();
+            armRetryTimer('Stall persisted, trying next source', BUFFER_TIMEOUT_MS);
         });
 
         player.addEventListener('canplay', function() {
             pushLog('Audio canplay: ' + player.currentSrc);
+            armRetryTimer('Playback did not begin after canplay, trying next source', BUFFER_TIMEOUT_MS);
         });
 
         player.addEventListener('error', function(e) {
@@ -466,11 +483,7 @@
                 });
             }
 
-            clearRetryTimer();
-            retryTimer = setTimeout(function() {
-                pushLog('No play event after timeout, trying next source');
-                tryNextSource();
-            }, 8000);
+            armRetryTimer('No playback after startup timeout, trying next source', STARTUP_TIMEOUT_MS);
         }
 
         function handleStationTap(cIndex, sIndex) {
@@ -487,6 +500,7 @@
 
                 currentSourceList = getStationSources(cIndex, sIndex);
                 currentSourceIndex = 0;
+                sourceAttemptCount = 0;
                 pushLog('Selected ' + categories[cIndex].stations[sIndex].name + ' with ' + currentSourceList.length + ' source(s)');
 
                 player.src = currentSourceList[currentSourceIndex];
@@ -511,8 +525,18 @@
                 return;
             }
 
+            if (sourceAttemptCount < MAX_ATTEMPTS_PER_SOURCE - 1) {
+                sourceAttemptCount++;
+                pushLog('Retrying source ' + (currentSourceIndex + 1) + '/' + currentSourceList.length + ' (attempt ' + (sourceAttemptCount + 1) + ')');
+                player.pause();
+                player.src = currentSourceList[currentSourceIndex];
+                safePlay(playingCat, playingStation);
+                return;
+            }
+
             if (currentSourceIndex < currentSourceList.length - 1) {
                 currentSourceIndex++;
+                sourceAttemptCount = 0;
                 var nextSource = currentSourceList[currentSourceIndex];
                 document.getElementById('status-' + playingCat + '-' + playingStation).innerText = 'Trying alternate stream...';
                 pushLog('Trying source ' + (currentSourceIndex + 1) + '/' + currentSourceList.length + ': ' + nextSource);
@@ -526,6 +550,14 @@
             updateUI(playingCat, playingStation, false);
             document.getElementById('status-' + playingCat + '-' + playingStation).innerText = 'Stream Error on this device';
             pushLog('All sources failed for current station');
+        }
+
+        function armRetryTimer(message, delayMs) {
+            clearRetryTimer();
+            retryTimer = setTimeout(function() {
+                pushLog(message);
+                tryNextSource();
+            }, delayMs);
         }
 
         function clearRetryTimer() {
